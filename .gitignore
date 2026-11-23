@@ -3,8 +3,14 @@
 *.iml
 
 # Visual Paradigm backup & lock files
-*.vpp.bak
+*.vpp.bak*
+*.vpp.vbak
 *.vpp.lck
+.*.vpp.lck
+
+# Temporary test files
+scratch/
+Claude outputs/
 
 # OS metadata
 .DS_Store

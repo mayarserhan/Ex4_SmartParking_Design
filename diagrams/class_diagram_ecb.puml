@@ -1,0 +1,210 @@
+@startuml
+' ===================== Enumerations =====================
+enum UserRole {
+  STUDENT
+  FACULTY
+  SECURITY_GUARD
+  TRAFFIC_ADMIN
+}
+enum SpotStatus {
+  AVAILABLE
+  RESERVED
+  OCCUPIED
+}
+enum ReservationStatus {
+  ACTIVE
+  FULFILLED
+  NO_SHOW_REVOKED
+}
+enum AppealDecision {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+' ===================== Boundary =====================
+class StudentDashboardUI <<boundary>> {
+  - selectedZone : String
+  + displayAvailableSpots(spotIds : List<String>) : void
+  + onReserveSpotClicked(spotId : String, licensePlate : String) : void
+  + onSubmitAppealClicked(violationId : String, reasonText : String) : void
+  + displayCountdown(minutes : int) : void
+  + showErrorAlert(message : String) : void
+}
+class GuardTerminalUI <<boundary>> {
+  + onLogViolationClicked(licensePlate : String, reason : String) : void
+  + onIssueGuestQrClicked(guestPlate : String) : void
+}
+class AdminAppealUI <<boundary>> {
+  + onReviewAppealClicked(appealId : String, approved : boolean) : void
+}
+class LprGateBoundary <<boundary>> {
+  + onPlateScanned(licensePlate : String, zoneName : String) : void
+  + onGuestQrScanned(qrToken : String) : void
+  + openBarrierGate() : void
+  + denyEntry() : void
+}
+class PaymentGatewayBoundary <<boundary>> {
+  + authorizeCreditCard(cardToken : String, amount : double) : String
+}
+class SmsGatewayBoundary <<boundary>> {
+  + sendSmsAlert(phoneNumber : String, message : String) : void
+}
+
+' ===================== Control =====================
+class ReservationControl <<control>> {
+  - reservationWindowMin : int = 15
+  + findAvailableSpots(userId : String, zoneId : String) : List<ParkingSpot>
+  + reserveSpot(userId : String, spotId : String, licensePlate : String) : Reservation
+  + processLprGateEntry(licensePlate : String, zoneName : String) : boolean
+  + validateGuestQrEntry(qrToken : String) : boolean
+  + revokeExpiredReservations() : void
+}
+class EvBillingControl <<control>> {
+  - idleGraceMin : int = 30
+  - idleRateNisPerHour : double = 5.0
+  + authorizeEvPayment(reservationId : String, cardToken : String, amount : double) : PaymentAuthorization
+  + notifyChargeComplete(sessionId : String) : void
+  + applyIdlePenalties() : void
+}
+class EnforcementControl <<control>> {
+  + issueGuestPass(guardId : String, guestPlate : String) : GuestPass
+  + logSevereViolation(guardId : String, licensePlate : String, reason : String) : Violation
+  + submitDigitalAppeal(violationId : String, reasonText : String) : Appeal
+  + reviewDigitalAppeal(adminId : String, appealId : String, approved : boolean) : void
+}
+
+' ===================== Entity =====================
+abstract class User <<entity>> {
+  - userId : String
+  - fullName : String
+  - email : String
+  - phoneNumber : String
+  - role : UserRole
+  - noShowWarnings : int
+  + incrementNoShowWarnings() : void
+}
+class Student <<entity>> {
+  - studentId : String
+  - activePermit : boolean
+  + hasActivePermit() : boolean
+}
+class Faculty <<entity>> {
+  - facultyId : String
+  - department : String
+  - activePermit : boolean
+  + hasActivePermit() : boolean
+}
+class SecurityGuard <<entity>> {
+  - badgeNumber : String
+}
+class TrafficAdministrator <<entity>> {
+  - adminOfficeId : String
+}
+class GuestPass <<entity>> {
+  - qrToken : String
+  - guestPlate : String
+  - expiresAt : LocalDateTime
+  - isUsed : boolean
+  + isValid() : boolean
+  + markUsed() : void
+}
+class Vehicle <<entity>> {
+  - licensePlate : String
+}
+class ParkingZone <<entity>> {
+  - zoneId : String
+  - zoneName : String
+  - totalCapacity : int
+}
+class ParkingSpot <<entity>> {
+  - spotId : String
+  - isEvCharger : boolean
+  - status : SpotStatus
+  - version : int
+  + isAvailable() : boolean
+  + tryReserve(expectedVersion : int) : boolean
+  + setStatus(status : SpotStatus) : void
+}
+class Reservation <<entity>> {
+  - reservationId : String
+  - createdAt : LocalDateTime
+  - expiresAt : LocalDateTime
+  - status : ReservationStatus
+  + isWithin15MinWindow() : boolean
+  + setStatus(status : ReservationStatus) : void
+}
+class PaymentAuthorization <<entity>> {
+  - authId : String
+  - gatewayToken : String
+  - authorizedAmount : double
+  - authorizedAt : LocalDateTime
+}
+class ChargingSession <<entity>> {
+  - sessionId : String
+  - completedAt : LocalDateTime
+  - isPluggedIn : boolean
+  - isPhysicallyOccupied : boolean
+  - idlePenaltyNis : double
+  + isIdleOver30Minutes() : boolean
+}
+class Violation <<entity>> {
+  - violationId : String
+  - reason : String
+  - fineAmount : double
+  - isPaid : boolean
+  + cancelFine() : void
+}
+class Appeal <<entity>> {
+  - appealId : String
+  - reasonText : String
+  - decision : AppealDecision
+  + setDecision(decision : AppealDecision) : void
+}
+
+' ===================== Inheritance (only arrows) =====================
+User <|-- Student
+User <|-- Faculty
+User <|-- SecurityGuard
+User <|-- TrafficAdministrator
+
+' ===================== Aggregation / Composition =====================
+ParkingZone "1" o-- "1..*" ParkingSpot : contains
+Reservation "1" *-- "0..1" PaymentAuthorization : requires for EV
+Reservation "1" *-- "0..1" ChargingSession : initiates
+Violation "1" *-- "0..1" Appeal : contested by
+
+' ===================== Entity associations =====================
+User "1" -- "0..*" Vehicle : owns
+Vehicle "1" -- "0..*" Reservation : booked for
+ParkingSpot "1" -- "0..*" Reservation : assigned to
+Vehicle "1" -- "0..*" Violation : receives
+SecurityGuard "0..1" -- "0..*" Violation : logs
+SecurityGuard "1" -- "0..*" GuestPass : issues
+TrafficAdministrator "0..1" -- "0..*" Appeal : reviews
+
+' ===================== Boundary -- Control =====================
+StudentDashboardUI "1" -- "1" ReservationControl : reserves via
+StudentDashboardUI "1" -- "1" EnforcementControl : appeals via
+GuardTerminalUI "1" -- "1" EnforcementControl : reports to
+AdminAppealUI "1" -- "1" EnforcementControl : decides via
+LprGateBoundary "1" -- "1" ReservationControl : notifies
+PaymentGatewayBoundary "1" -- "1" EvBillingControl : authorizes for
+SmsGatewayBoundary "1" -- "1" EvBillingControl : alerts for
+SmsGatewayBoundary "1" -- "1" EnforcementControl : notifies for
+
+' ===================== Control -- Entity =====================
+ReservationControl "1" -- "0..*" User : manages
+ReservationControl "1" -- "0..*" Vehicle : identifies
+ReservationControl "1" -- "0..*" ParkingZone : filters
+ReservationControl "1" -- "0..*" ParkingSpot : reserves
+ReservationControl "1" -- "0..*" Reservation : creates
+ReservationControl "1" -- "0..*" GuestPass : validates
+EvBillingControl "1" -- "0..*" PaymentAuthorization : creates
+EvBillingControl "1" -- "0..*" ChargingSession : monitors
+EvBillingControl "1" -- "0..*" Violation : issues idle penalty
+EnforcementControl "1" -- "0..*" Vehicle : looks up
+EnforcementControl "1" -- "0..*" GuestPass : issues
+EnforcementControl "1" -- "0..*" Violation : logs
+EnforcementControl "1" -- "0..*" Appeal : processes
+@enduml
