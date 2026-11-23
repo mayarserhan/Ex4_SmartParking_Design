@@ -7,6 +7,11 @@ boundary ":SmsGatewayBoundary" as SMS
 
 Timer -> Billing : applyIdlePenalties()
 activate Billing
+note over Session
+At minute 29: isPluggedIn = false
+The vehicle remains: isPhysicallyOccupied = true
+Apply the idle penalty only after the 30-minute threshold.
+end note
 
 loop for each completed ChargingSession
   Billing -> Session : isIdleOver30Minutes()
