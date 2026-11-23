@@ -147,6 +147,7 @@ class ChargingSession <<entity>> {
   - isPhysicallyOccupied : boolean
   - idlePenaltyNis : double
   + isIdleOver30Minutes() : boolean
+  + handleUnpluggedCable() : void
 }
 class Violation <<entity>> {
   - violationId : String
