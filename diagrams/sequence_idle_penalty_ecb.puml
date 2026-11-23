@@ -1,4 +1,7 @@
 @startuml
+
+skinparam sequenceArrowThickness 2
+
 participant ":IdlePenaltyScheduler" as Timer <<system>>
 control ":EvBillingControl" as Billing
 entity "session : ChargingSession" as Session
@@ -8,16 +11,32 @@ boundary ":SmsGatewayBoundary" as SMS
 Timer -> Billing : applyIdlePenalties()
 activate Billing
 
+note over Billing, Session
+At minute 29: isPluggedIn = false.
+The vehicle remains isPhysicallyOccupied = true.
+overdueAndOccupied means overdue == true
+and isPhysicallyOccupied == true.
+Apply the idle penalty only after the 30-minute threshold.
+end note
+
 loop for each completed ChargingSession
-  Billing -> Session : isIdleOver30Minutes()
-  activate Session
-  Session --> Billing : overdue
-  deactivate Session
-  alt overdue == true (isPhysicallyOccupied == true)
-    create Fine
-    Billing -> Fine : <<create>> (5.0 NIS/hr)
-    Billing -> SMS : sendSmsAlert(phoneNumber, "Idle penalty of 5 NIS/hr applied.")
-  end
+    Billing -> Session : isIdleOver30Minutes()
+    activate Session
+    Session --> Billing : overdue
+    deactivate Session
+
+    |||
+
+    alt [overdueAndOccupied]
+        create Fine
+        Billing -> Fine : <<create>> (5.0 NIS/hr)
+
+        |||
+
+        Billing -> SMS : sendSmsAlert(phoneNumber,\n"Idle penalty of 5 NIS/hr applied.")
+    else [otherwise]
+        note over Billing, Session : No penalty
+    end
 end
 
 deactivate Billing
