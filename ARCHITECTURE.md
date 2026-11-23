@@ -10,12 +10,11 @@
 
 | Role | Full Name | Student ID | Braude Academic Email |
 | :--- | :--- | :--- | :--- |
-| **Student A (Role A)** | `[Enter Student A Full Name]` | `[Enter ID]` | `[studentA@e.braude.ac.il]` |
-| **Student B (Role B)** | `[Enter Student B Full Name]` | `[Enter ID]` | `[studentB@e.braude.ac.il]` |
+| **Student A (Role A)** | `[Mayar Serhan]` | `[325475440]` | `[Mayar.Serhan@e.braude.ac.il]` |
+| **Student B (Role B)** | `[Seren Amoun]` | `[215081084]` | `[Seren Amoun@e.braude.ac.il]` |
 
-* **Group Number:** `G[XX]`
-* **GitHub Repository URL:** `https://github.com/[Username]/Ex4_SmartParking_Design`
-
+* **Group Number:** `G[9/16]`
+  **GitHub Repository URL:** https://github.com/mayarserhan/Ex4_SmartParking_Design
 ---
 
 ## 2. Step 1: Business Process Modeling — Activity Diagram (`Visual Paradigm`)
@@ -62,12 +61,18 @@ Following the **ECB (Entity-Control-Boundary)** architectural pattern:
 ## 5. Independent AI Prompt & Architectural Design Critique (Part 4)
 
 ```text
-[Paste your team's verbatim English Design Review prompt from Part 4 here]
+[Review the attached SYSTEM_STORY.md, class_diagram_ecb.puml, and sequence_reservation_ecb.puml.
+
+Check these two edge cases:
+1. Two students try to reserve the last available parking spot at the same time. Does version and tryReserve(expectedVersion) prevent both reservations from succeeding?
+2. An EV driver unplugs the cable at minute 29 but does not move the vehicle. Does the model distinguish isPluggedIn from isPhysicallyOccupied, and is the idle-penalty behavior clear?
+
+Check that every operation called in the reservation sequence exists on the corresponding class in the class diagram. Suggest one additional concrete design improvement and specify which file and class or operation should change. Do not edit the files.]
 ```
 
 * **Improvement 1 Applied (Race Condition):** Added `version: int` and `tryReserve(expectedVersion: int): boolean` on `ParkingSpot` (and nested `alt acquired == true/false` in Sequence Diagram 1) to prevent simultaneous double-booking.
 * **Improvement 2 Applied (EV Physical Occupancy):** Separated `isPluggedIn` from `isPhysicallyOccupied` on `ChargingSession` so unplugging the cable at minute 29 without moving the car still triggers the 30-minute Charger Idle Penalty.
-
+* **Improvement 3 Applied (Unplugged Cable Handling):** Added `handleUnpluggedCable() : void` to `ChargingSession` in `diagrams/class_diagram_ecb.puml` to explicitly model the cable-unplug event.
 ---
 
 ## 6. License
