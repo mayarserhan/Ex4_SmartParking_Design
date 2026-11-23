@@ -1,42 +1,49 @@
 @startuml
+
 |Security Guard (Actor)|
 start
 :Patrol Campus Parking Lot;
 
 if (Illegal Parking Spotted?) then ([yes])
-  :Log Severe Violation on GuardTerminalUI;
+  :Report Severe Violation;
 
-  |EnforcementControl (System Controller)|
+  |Parking Enforcement System|
   fork
     :Create Violation and Attach Fine to Owner Account;
   fork again
-    :Dispatch Violation Notification to User;
+    :Notify User of Reported Violation;
   end fork
 
   |Student / User (Actor)|
   if (Submit Digital Appeal?) then ([yes])
-    :Submit Appeal Reason and Evidence via StudentDashboardUI;
+    :Submit Appeal Reason and Evidence;
 
     |Traffic Administrator (Actor)|
-    :Review Digital Appeal and Evidence via AdminAppealUI;
+    :Review Digital Appeal and Evidence;
 
     if (Appeal Approved?) then ([yes])
-      |EnforcementControl (System Controller)|
-      :Set AppealDecision to APPROVED and Cancel Fine;
+      |Parking Enforcement System|
+      :Set AppealDecision to APPROVED;
+      :Cancel Fine;
+
     else ([no])
-      |EnforcementControl (System Controller)|
-      :Set AppealDecision to REJECTED and Enforce Fine;
+      |Parking Enforcement System|
+      :Set AppealDecision to REJECTED;
+      :Enforce Fine;
     endif
 
-    |EnforcementControl (System Controller)|
+    |Parking Enforcement System|
     :Archive Appeal Decision and Notify User;
     stop
+
   else ([no])
-    |EnforcementControl (System Controller)|
+    |Parking Enforcement System|
     :Keep Fine Active and Block Permit Renewal;
     stop
   endif
+
 else ([no])
+  |Security Guard (Actor)|
   stop
 endif
 
